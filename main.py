@@ -1,45 +1,71 @@
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from instagrapi import Client
+import asyncio
+import os
 
-def delete_sent_messages(username, password, target_username):
+ASK_USERNAME, ASK_PASSWORD, ASK_TARGET = range(3)
+user_data_store = {}
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📥 لطفاً یوزرنیم اینستاگرام خود را وارد کنید:")
+    return ASK_USERNAME
+
+async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data_store[update.effective_chat.id] = {'username': update.message.text}
+    await update.message.reply_text("🔐 حالا پسورد اینستاگرام را وارد کنید:")
+    return ASK_PASSWORD
+
+async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data_store[update.effective_chat.id]['password'] = update.message.text
+    await update.message.reply_text("🎯 لطفاً یوزرنیم فردی را وارد کنید که می‌خواهید پیام‌هایتان به او حذف شوند:")
+    return ASK_TARGET
+
+async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = user_data_store[update.effective_chat.id]
+    target_username = update.message.text
+    await update.message.reply_text("⏳ در حال ورود به حساب اینستاگرام...")
+
     cl = Client()
     try:
-        cl.login(username, password)
+        cl.login(data['username'], data['password'])
     except Exception as e:
-        print(f"❌ Login failed: {e}")
-        return
+        await update.message.reply_text(f"❌ ورود ناموفق: {e}")
+        return ConversationHandler.END
 
     try:
-        user_id = cl.user_id_from_username(target_username)
-        threads = cl.direct_threads()
-        found = False
+        target_user_id = cl.user_id_from_username(target_username)
+        thread = cl.direct_threads(selected_user_ids=[target_user_id])[0]
 
-        for thread in threads:
-            if user_id in [u.pk for u in thread.users]:
-                found = True
-                print(f"📥 Found chat with {target_username}")
-                for message in thread.messages:
-                    if message.user_id == cl.user_id:
-                        try:
-                            cl.direct_delete_messages(thread_id=thread.id, message_ids=[message.id])
-                            print(f"✅ Deleted message: {message.text}")
-                        except Exception as e:
-                            print(f"❌ Failed to delete message: {e}")
-                break
+        count = 0
+        for msg in thread.messages:
+            if msg.user_id == cl.user_id:
+                cl.direct_delete_messages(thread.id, [msg.id])
+                count += 1
+                await asyncio.sleep(0.3)
 
-        if not found:
-            print("❌ Chat with user not found.")
+        await update.message.reply_text(f"✅ {count} پیام شما به @{target_username} با موفقیت حذف شد.")
+
     except Exception as e:
-        print(f"❌ Error: {e}")
+        await update.message.reply_text(f"⚠️ خطا هنگام حذف پیام‌ها: {e}")
 
+    return ConversationHandler.END
 
 if __name__ == "__main__":
-    print("📥 Instagram username:", end=" ")
-    insta_user = input().strip()
+    TOKEN = os.getenv("8385635455:AAGHECG2ZQ2_o5J6v8Wfx84ZNntPuD8hPfk")
 
-    print("🔐 Instagram password:", end=" ")
-    insta_pass = input().strip()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    print("👤 Target username (to delete messages sent to):", end=" ")
-    target_user = input().strip()
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            ASK_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
+            ASK_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
+            ASK_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_target)],
+        },
+        fallbacks=[],
+    )
 
-    delete_sent_messages(insta_user, insta_pass, target_user) 
+    app.add_handler(conv_handler)
+    print("🤖 Bot is running...")
+    app.run_polling() 
