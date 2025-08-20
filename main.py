@@ -52,7 +52,7 @@ async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 if __name__ == "__main__":
-    TOKEN = os.getenv("8385635455:AAGHECG2ZQ2_o5J6v8Wfx84ZNntPuD8hPfk")
+    TOKEN = ("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw")
 
     app = ApplicationBuilder().token(TOKEN).build()
 
