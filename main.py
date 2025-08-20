@@ -1,71 +1,62 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from instagrapi import Client
 import asyncio
-import os
 
-ASK_USERNAME, ASK_PASSWORD, ASK_TARGET = range(3)
-user_data_store = {}
+sessions = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 لطفاً یوزرنیم اینستاگرام خود را وارد کنید:")
-    return ASK_USERNAME
+    await update.message.reply_text("👋 Welcome!\nSend your Instagram username:")
 
-async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data_store[update.effective_chat.id] = {'username': update.message.text}
-    await update.message.reply_text("🔐 حالا پسورد اینستاگرام را وارد کنید:")
-    return ASK_PASSWORD
+    sessions[update.effective_user.id] = {
+        "step": "username"
+    }
 
-async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data_store[update.effective_chat.id]['password'] = update.message.text
-    await update.message.reply_text("🎯 لطفاً یوزرنیم فردی را وارد کنید که می‌خواهید پیام‌هایتان به او حذف شوند:")
-    return ASK_TARGET
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    message = update.message.text.strip()
 
-async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = user_data_store[update.effective_chat.id]
-    target_username = update.message.text
-    await update.message.reply_text("⏳ در حال ورود به حساب اینستاگرام...")
+    if user_id not in sessions:
+        await update.message.reply_text("Please send /start first.")
+        return
 
-    cl = Client()
-    try:
-        cl.login(data['username'], data['password'])
-    except Exception as e:
-        await update.message.reply_text(f"❌ ورود ناموفق: {e}")
-        return ConversationHandler.END
+    session = sessions[user_id]
 
-    try:
-        target_user_id = cl.user_id_from_username(target_username)
-        thread = cl.direct_threads(selected_user_ids=[target_user_id])[0]
+    if session["step"] == "username":
+        session["username"] = message
+        session["step"] = "password"
+        await update.message.reply_text("🔐 Now send your Instagram password:")
 
-        count = 0
-        for msg in thread.messages:
-            if msg.user_id == cl.user_id:
-                cl.direct_delete_messages(thread.id, [msg.id])
-                count += 1
-                await asyncio.sleep(0.3)
+    elif session["step"] == "password":
+        session["password"] = message
+        session["step"] = "target"
+        await update.message.reply_text("👤 Send target Instagram username to delete your messages from chat:")
 
-        await update.message.reply_text(f"✅ {count} پیام شما به @{target_username} با موفقیت حذف شد.")
+    elif session["step"] == "target":
+        session["target"] = message
+        await update.message.reply_text("🔄 Trying to login and delete your messages...")
 
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ خطا هنگام حذف پیام‌ها: {e}")
+        try:
+            cl = Client()
+            cl.login(session["username"], session["password"])
 
-    return ConversationHandler.END
+            user_id_target = cl.user_id_from_username(session["target"])
+            thread = cl.direct_threads(user_ids=[user_id_target])[0]
 
-if __name__ == "__main__":
-    TOKEN = ("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw")
+            deleted = 0
+            for msg in thread.messages:
+                if msg.user_id == cl.user_id:
+                    cl.direct_delete_messages(thread.id, [msg.id])
+                    deleted += 1
 
-    app = ApplicationBuilder().token(TOKEN).build()
+            await update.message.reply_text(f"✅ Deleted {deleted} messages you sent to @{session['target']}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {e}")
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            ASK_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
-            ASK_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
-            ASK_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_target)],
-        },
-        fallbacks=[],
-    )
+        del sessions[user_id]
 
-    app.add_handler(conv_handler)
-    print("🤖 Bot is running...")
-    app.run_polling() 
+app = ApplicationBuilder().Token("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw").build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+
+app.run_polling() 
