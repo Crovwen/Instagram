@@ -76,7 +76,7 @@ def cancel(update, context):
 
 # اجرای اصلی
 def main():
-    TOKEN = "توکن ربات تلگرامت اینجا"
+    TOKEN = "8385635455:AAGHECG2ZQ2_o5J6v8Wfx84ZNntPuD8hPfk"
 
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
