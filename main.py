@@ -78,7 +78,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ساخت اپلیکیشن با Webhook
 if __name__ == '__main__':
-    from telegram.ext import defaults
+    from telegram.ext import Defaults
     from telegram.constants import ParseMode
 
     TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
