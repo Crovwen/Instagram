@@ -81,8 +81,8 @@ if __name__ == '__main__':
     from telegram.ext import Defaults
     from telegram.constants import ParseMode
 
-    TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
-    DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"  # آدرس رندر
+    TOKEN = ("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
+    DOMAIN = ("https://instagram-bvt4.onrender.com") or "https://instagram-bvt4.onrender.com"  # آدرس رندر
 
     app = ApplicationBuilder().token(TOKEN).build()
 
