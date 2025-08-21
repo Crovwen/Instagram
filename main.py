@@ -99,7 +99,8 @@ if __name__ == '__main__':
     app.add_handler(conv_handler)
 
     app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        webhook_url=f"{DOMAIN}/webhook/{TOKEN}"
-    )
+    listen="0.0.0.0",
+    port=int(os.environ.get("PORT", 10000)),
+    webhook_url=f"{DOMAIN}/webhook/{TOKEN}",
+    webhook_path=f"/webhook/{TOKEN}"
+        )
