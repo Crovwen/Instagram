@@ -5,7 +5,7 @@ import asyncio
 import os
 
 TOKEN = "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
-APP_URL = "https://نام-سرویس-تو.onrender.com"  # 🔁 آدرس سرویس رندر تو
+APP_URL = "https://instagram-bvt4.onrender.com"  # 🔁 آدرس سرویس رندر تو
 
 # ساخت اپلیکیشن
 app = Flask(__name__)
