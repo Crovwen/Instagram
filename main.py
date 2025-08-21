@@ -1,62 +1,42 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from instagrapi import Client
+from flask import Flask, request
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 import asyncio
+import os
 
-sessions = {}
+TOKEN = "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
+APP_URL = "https://نام-سرویس-تو.onrender.com"  # 🔁 آدرس سرویس رندر تو
 
+# ساخت اپلیکیشن
+app = Flask(__name__)
+bot_app = None  # برای استفاده در endpoint
+
+# فرمان /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Welcome!\nSend your Instagram username:")
+    await update.message.reply_text("ربات با موفقیت فعاله! ✅")
 
-    sessions[update.effective_user.id] = {
-        "step": "username"
-    }
+# مسیر Webhook
+@app.route('/webhook', methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    asyncio.run(bot_app.process_update(update))
+    return "ok", 200
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    message = update.message.text.strip()
+async def setup_bot():
+    global bot_app
+    bot_app = ApplicationBuilder().token(TOKEN).build()
 
-    if user_id not in sessions:
-        await update.message.reply_text("Please send /start first.")
-        return
+    # ثبت فرمان‌ها
+    bot_app.add_handler(CommandHandler("start", start))
 
-    session = sessions[user_id]
+    # ست کردن Webhook
+    await bot_app.bot.set_webhook(f"{APP_URL}/webhook")
+    print(f"Webhook set to {APP_URL}/webhook")
 
-    if session["step"] == "username":
-        session["username"] = message
-        session["step"] = "password"
-        await update.message.reply_text("🔐 Now send your Instagram password:")
+    return bot_app
 
-    elif session["step"] == "password":
-        session["password"] = message
-        session["step"] = "target"
-        await update.message.reply_text("👤 Send target Instagram username to delete your messages from chat:")
-
-    elif session["step"] == "target":
-        session["target"] = message
-        await update.message.reply_text("🔄 Trying to login and delete your messages...")
-
-        try:
-            cl = Client()
-            cl.login(session["username"], session["password"])
-
-            user_id_target = cl.user_id_from_username(session["target"])
-            thread = cl.direct_threads(user_ids=[user_id_target])[0]
-
-            deleted = 0
-            for msg in thread.messages:
-                if msg.user_id == cl.user_id:
-                    cl.direct_delete_messages(thread.id, [msg.id])
-                    deleted += 1
-
-            await update.message.reply_text(f"✅ Deleted {deleted} messages you sent to @{session['target']}")
-        except Exception as e:
-            await update.message.reply_text(f"❌ Error: {e}")
-
-        del sessions[user_id]
-
-app = ApplicationBuilder().token("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw").build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
-app.run_polling() 
+if __name__ == '__main__':
+    # راه‌اندازی بات در بک‌گراند
+    asyncio.run(setup_bot())
+    # اجرای سرور Flask
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
