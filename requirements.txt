@@ -1,4 +1,4 @@
-python-telegram-bot[webhooks]==20.7
+python-telegram-bot[webhooks]==13.15
 instagrapi==2.2.1
 Pillow>=8.1.1
 urllib3<2
