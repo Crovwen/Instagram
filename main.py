@@ -1,25 +1,23 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler, filters,
+    ContextTypes, ConversationHandler
+)
 from instagrapi import Client
 import os
 
-# مراحل گفتگو
 USERNAME, PASSWORD, TARGET = range(3)
-
 user_sessions = {}
 
-# شروع ربات
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("سلام! لطفاً یوزرنیم اینستاگرام خودتو بفرست 📱")
     return USERNAME
 
-# دریافت یوزرنیم
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["username"] = update.message.text.strip()
     await update.message.reply_text("حالا پسوردتو بفرست 🔐")
     return PASSWORD
 
-# دریافت پسورد و لاگین
 async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     password = update.message.text.strip()
     username = context.user_data["username"]
@@ -35,7 +33,6 @@ async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ ورود ناموفق بود. لطفاً یوزرنیم یا پسورد رو بررسی کن و دوباره /start رو بزن.")
         return ConversationHandler.END
 
-# دریافت آیدی تارگت و حذف پیام‌ها
 async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_username = update.message.text.strip()
     cl = user_sessions.get(update.effective_user.id)
@@ -71,18 +68,16 @@ async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ خطایی رخ داد. آیدی رو چک کن یا بعداً دوباره تلاش کن.")
     return ConversationHandler.END
 
-# کنسل کردن مکالمه
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("گفتگو لغو شد ❌")
     return ConversationHandler.END
 
-# ساخت اپلیکیشن با Webhook
 if __name__ == '__main__':
     from telegram.ext import Defaults
     from telegram.constants import ParseMode
 
-    TOKEN = ("8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
-    DOMAIN = ("https://instagram-bvt4.onrender.com") or "https://instagram-bvt4.onrender.com"  # آدرس رندر
+    TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
+    DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"
 
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -98,9 +93,17 @@ if __name__ == '__main__':
 
     app.add_handler(conv_handler)
 
-    app.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.environ.get("PORT", 10000)),
-    webhook_url=f"{DOMAIN}/webhook/{TOKEN}",
-    webhook_path=f"/webhook/{TOKEN}"
+    # راه‌اندازی دستی webhook بدون webhook_path
+    async def main():
+        await app.initialize()
+        await app.start()
+        await app.bot.set_webhook(url=f"{DOMAIN}/webhook/{TOKEN}")
+        await app.updater.start_webhook(
+            listen="0.0.0.0",
+            port=int(os.environ.get("PORT", 10000)),
+            url_path=f"/webhook/{TOKEN}"
         )
+        await app.updater.wait_for_stop()
+
+    import asyncio
+    asyncio.run(main()) 
