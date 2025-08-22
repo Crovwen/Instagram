@@ -1,4 +1,4 @@
 python-telegram-bot==20.3
-instagrapi==1.47.0
+instagrapi
 Pillow>=8.1.1
 urllib3<2
