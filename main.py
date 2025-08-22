@@ -1,9 +1,8 @@
 import os
-import asyncio
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    ConversationHandler, ContextTypes, filters
+    ContextTypes, ConversationHandler, filters
 )
 from instagrapi import Client
 
@@ -74,10 +73,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def main():
+    from telegram.ext import Application
     TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
     DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -91,16 +91,14 @@ async def main():
 
     app.add_handler(conv_handler)
 
-    # Webhook setup
-    await app.initialize()
-    await app.bot.set_webhook(url=f"{DOMAIN}/webhook/{TOKEN}")
-    await app.start()
-    await app.updater.start_webhook(
+    # ست کردن وبهوک فقط همین
+    await app.bot.set_webhook(f"{DOMAIN}/webhook/{TOKEN}")
+    await app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
-        url_path=f"/webhook/{TOKEN}"
+        webhook_path=f"/webhook/{TOKEN}"
     )
-    await app.updater.wait_for_stop()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import asyncio
+    asyncio.run(main()) 
