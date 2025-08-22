@@ -6,6 +6,6 @@ services:
     startCommand: python main.py
     envVars:
       - key: BOT_TOKEN
-        value: "8385635455:AAENIQLo1J3npQU-wn0E4l1-NG7NCJH0rJk"
+        value: "8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8"
       - key: WEBHOOK_DOMAIN
         value: "https://instagram-bvt4.onrender.com"
