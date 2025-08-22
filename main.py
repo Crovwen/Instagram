@@ -1,69 +1,57 @@
-import os
+import logging
 import asyncio
 from telegram import Update
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    ContextTypes, ConversationHandler, filters
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
 )
 from instagrapi import Client
 
-TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_DOMAIN = os.getenv("https://instagram-bvt4.onrender.com")  # مثل: https://your-app-name.onrender.com
+# فعال‌سازی لاگ
+logging.basicConfig(level=logging.INFO)
 
-cl = Client()
-USER, PASS = range(2)
-user_sessions = {}
+# متغیرها
+user_sessions = {}  # user_id => {'username': ..., 'password': ...}
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! با دستور /login لاگین کن به اینستاگرامت.")
+    await update.message.reply_text("سلام! لطفا یوزرنیم اینستاگرامت رو بفرست.")
 
-async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🧑 لطفاً یوزرنیم اینستاگرام رو بفرست:")
-    return USER
 
-async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["username"] = update.message.text
-    await update.message.reply_text("🔒 حالا رمز اینستاگرامت رو بفرست:")
-    return PASS
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text
 
-async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    username = context.user_data["username"]
-    password = update.message.text
+    if user_id not in user_sessions:
+        user_sessions[user_id] = {"username": text}
+        await update.message.reply_text("پسوردت رو بفرست.")
+    elif "password" not in user_sessions[user_id]:
+        user_sessions[user_id]["password"] = text
 
-    try:
-        cl.login(username, password)
-        user_sessions[update.effective_user.id] = cl.get_settings()
-        await update.message.reply_text("✅ لاگین موفق بود!")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطا در لاگین: {e}")
-    return ConversationHandler.END
+        await update.message.reply_text("در حال ورود به حساب...")
+        username = user_sessions[user_id]["username"]
+        password = user_sessions[user_id]["password"]
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⛔️ عملیات لغو شد.")
-    return ConversationHandler.END
-
-def setup_handlers(app):
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("login", login)],
-        states={
-            USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
-            PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(conv_handler)
+        cl = Client()
+        try:
+            cl.login(username, password)
+            await update.message.reply_text("✅ ورود موفقیت‌آمیز بود.")
+            # اینجا می‌تونی بقیه عملیات رو انجام بدی
+        except Exception as e:
+            await update.message.reply_text(f"❌ خطا در ورود: {e}")
+            del user_sessions[user_id]
+    else:
+        await update.message.reply_text("شما قبلا لاگین کردی.")
 
 async def main():
-    app = Application.builder().token(TOKEN).build()
-    setup_handlers(app)
+    app = ApplicationBuilder().token("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8").build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    await app.bot.set_webhook(f"{WEBHOOK_DOMAIN}/webhook")
-    await app.run_webhook(
-        listen="0.0.0.0",
-        port=8000,
-        webhook_path="/webhook"
-    )
+    await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main()) 
