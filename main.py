@@ -57,3 +57,14 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main()) 
+import asyncio
+
+async def main():
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    await application.updater.idle()
+    await application.stop()
+    await application.shutdown()
+
+asyncio.run(main())
