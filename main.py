@@ -1,95 +1,101 @@
 import logging
-import asyncio
-from telegram import Update, ForceReply
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ConversationHandler,
-    ContextTypes,
-    filters,
-)
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from instagrapi import Client
 
-logging.basicConfig(level=logging.INFO)
+# مراحل گفتگو
+ASK_USERNAME, ASK_PASSWORD, ASK_TARGET = range(3)
 
-USERNAME, PASSWORD, TARGET = range(3)
-user_data = {}
+# ذخیره اطلاعات کاربران
+user_sessions = {}
 
-# Start command
+# لاگ‌گیری
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+# شروع بات
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! لطفاً یوزرنیم اینستاگرامتو بفرست:")
-    return USERNAME
+    await update.message.reply_text("👋 سلام! لطفاً یوزرنیم اینستاگرامت رو بفرست:")
+    return ASK_USERNAME
 
 # دریافت یوزرنیم
-async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data['username'] = update.message.text
-    await update.message.reply_text("پسوردتو بفرست:")
-    return PASSWORD
+async def ask_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_sessions[user_id] = {"username": update.message.text}
+    await update.message.reply_text("✅ حالا پسورد اینستاگرامت رو بفرست:")
+    return ASK_PASSWORD
 
-# دریافت پسورد و تلاش برای ورود
-async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data['password'] = update.message.text
-    await update.message.reply_text("درحال ورود به اکانت...")
-    
-    cl = Client()
-    try:
-        cl.login(user_data['username'], user_data['password'])
-        user_data['client'] = cl
-        await update.message.reply_text("✅ ورود موفق بود!\nآیدی فرد مقابلتو (مثلاً: example_user) بفرست:")
-        return TARGET
-    except Exception as e:
-        await update.message.reply_text(f"❌ ورود ناموفق بود:\n{e}")
+# دریافت پسورد
+async def ask_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_sessions[user_id]["password"] = update.message.text
+    await update.message.reply_text("🔍 حالا آیدی اینستاگرام فردی که می‌خوای پیام‌ها رو حذف کنی بفرست:")
+    return ASK_TARGET
+
+# دریافت آیدی هدف و حذف پیام‌ها
+async def ask_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    session = user_sessions.get(user_id)
+
+    if not session:
+        await update.message.reply_text("❌ خطا: لطفاً دوباره `/start` رو بزن.")
         return ConversationHandler.END
 
-# حذف پیام‌ها
-async def get_target_and_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_username = update.message.text
-    cl = user_data['client']
 
     try:
-        user_id = cl.user_id_from_username(target_username)
+        cl = Client()
+        cl.login(session["username"], session["password"])
+
+        user_id_target = cl.user_id_from_username(target_username)
         threads = cl.direct_threads()
+
         deleted = 0
 
         for thread in threads:
-            if user_id in thread.users:
-                messages = cl.direct_messages(thread.id, amount=20)
-                for msg in messages:
-                    if msg.user_id == cl.user_id:
+            if thread.users[0].pk == user_id_target:
+                for message in thread.messages:
+                    if message.user_id == cl.user_id:
                         try:
-                            cl.direct_delete_messages(thread.id, [msg.id])
+                            cl.direct_delete_messages(thread.id, [message.id])
                             deleted += 1
                         except:
-                            pass
+                            continue
 
-        await update.message.reply_text(f"✅ {deleted} پیام ارسالی شما برای @{target_username} حذف شد.")
+        await update.message.reply_text(f"✅ {deleted} پیام حذف شد.")
+
     except Exception as e:
-        await update.message.reply_text(f"❌ خطا در حذف پیام‌ها:\n{e}")
-    
+        await update.message.reply_text(f"⚠️ خطا در ورود یا حذف پیام‌ها:\n{e}")
+
     return ConversationHandler.END
 
-# لغو عملیات
+# کنسل کردن مکالمه
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⛔️ عملیات لغو شد.")
     return ConversationHandler.END
 
 # اجرای اصلی
-async def main():
-    app = ApplicationBuilder().token("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8").build()
+if __name__ == '__main__':
+    import asyncio
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
-            PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
-            TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_target_and_delete)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
+    async def main():
+        app = ApplicationBuilder().token("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8").build()
 
-    app.add_handler(conv_handler)
-    await app.run_polling()
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("start", start)],
+            states={
+                ASK_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_username)],
+                ASK_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_password)],
+                ASK_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_target)],
+            },
+            fallbacks=[CommandHandler("cancel", cancel)],
+        )
 
-if __name__ == "__main__":
-    asyncio.run(main()) 
+        app.add_handler(conv_handler)
+
+        print("Bot is running...")
+        await app.run_polling()
+
+    asyncio.run(main())
