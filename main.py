@@ -47,7 +47,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del SESSIONS[user_id]
 
 async def main():
-    app = ApplicationBuilder().token("توکن ربات خودتو اینجا بذار").build()
+    app = ApplicationBuilder().token("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8").build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
