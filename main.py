@@ -1,10 +1,11 @@
+import os
+import asyncio
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, filters,
-    ContextTypes, ConversationHandler
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ConversationHandler, ContextTypes, filters
 )
 from instagrapi import Client
-import os
 
 USERNAME, PASSWORD, TARGET = range(3)
 user_sessions = {}
@@ -72,12 +73,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("گفتگو لغو شد ❌")
     return ConversationHandler.END
 
-# ----------------------------
-# ✅ اجرای Webhook صحیح:
-# ----------------------------
-if __name__ == '__main__':
-    import asyncio
-
+async def main():
     TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
     DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"
 
@@ -95,12 +91,16 @@ if __name__ == '__main__':
 
     app.add_handler(conv_handler)
 
-    async def main():
-        await app.run_webhook(
-            listen="0.0.0.0",
-            port=int(os.environ.get("PORT", 10000)),
-            webhook_path=f"/webhook/{TOKEN}",
-            webhook_url=f"{DOMAIN}/webhook/{TOKEN}",
-        )
+    # Webhook setup
+    await app.initialize()
+    await app.bot.set_webhook(url=f"{DOMAIN}/webhook/{TOKEN}")
+    await app.start()
+    await app.updater.start_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        url_path=f"/webhook/{TOKEN}"
+    )
+    await app.updater.wait_for_stop()
 
+if __name__ == "__main__":
     asyncio.run(main())
