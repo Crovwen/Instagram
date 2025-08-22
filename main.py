@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 from instagrapi import Client
 
-TOKEN = os.getenv("8385635455:AAENIQLo1J3npQU-wn0E4l1-NG7NCJH0rJk")
+TOKEN = os.getenv("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8")
 WEBHOOK_DOMAIN = os.getenv("https://instagram-bvt4.onrender.com")  # مثل: https://your-app-name.onrender.com
 
 cl = Client()
