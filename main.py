@@ -1,104 +1,69 @@
 import os
+import asyncio
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
+    Application, CommandHandler, MessageHandler,
     ContextTypes, ConversationHandler, filters
 )
 from instagrapi import Client
 
-USERNAME, PASSWORD, TARGET = range(3)
+TOKEN = os.getenv("8385635455:AAENIQLo1J3npQU-wn0E4l1-NG7NCJH0rJk")
+WEBHOOK_DOMAIN = os.getenv("https://instagram-bvt4.onrender.com")  # مثل: https://your-app-name.onrender.com
+
+cl = Client()
+USER, PASS = range(2)
 user_sessions = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! لطفاً یوزرنیم اینستاگرام خودتو بفرست 📱")
-    return USERNAME
+    await update.message.reply_text("سلام! با دستور /login لاگین کن به اینستاگرامت.")
+
+async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🧑 لطفاً یوزرنیم اینستاگرام رو بفرست:")
+    return USER
 
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["username"] = update.message.text.strip()
-    await update.message.reply_text("حالا پسوردتو بفرست 🔐")
-    return PASSWORD
+    context.user_data["username"] = update.message.text
+    await update.message.reply_text("🔒 حالا رمز اینستاگرامت رو بفرست:")
+    return PASS
 
 async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    password = update.message.text.strip()
     username = context.user_data["username"]
+    password = update.message.text
 
-    cl = Client()
     try:
         cl.login(username, password)
-        user_sessions[update.effective_user.id] = cl
-        await update.message.reply_text("✅ ورود موفقیت‌آمیز بود!\nحالا آیدی اینستاگرام کسی که می‌خوای پیام‌هات رو از چتش پاک کنم بفرست:")
-        return TARGET
+        user_sessions[update.effective_user.id] = cl.get_settings()
+        await update.message.reply_text("✅ لاگین موفق بود!")
     except Exception as e:
-        print("Login Error:", e)
-        await update.message.reply_text("❌ ورود ناموفق بود. لطفاً یوزرنیم یا پسورد رو بررسی کن و دوباره /start رو بزن.")
-        return ConversationHandler.END
-
-async def get_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target_username = update.message.text.strip()
-    cl = user_sessions.get(update.effective_user.id)
-
-    try:
-        user_id = cl.user_id_from_username(target_username)
-        threads = cl.direct_threads()
-
-        thread_id = None
-        for thread in threads:
-            if any(user.pk == user_id for user in thread.users):
-                thread_id = thread.id
-                break
-
-        if not thread_id:
-            await update.message.reply_text("❌ چت با این کاربر پیدا نشد. ممکنه هنوز بهش پیام ندادی.")
-            return ConversationHandler.END
-
-        messages = cl.direct_messages(thread_id, amount=100)
-        deleted_count = 0
-        for msg in messages:
-            if msg.user_id == cl.user_id:
-                try:
-                    cl.direct_delete_messages(thread_id, [msg.id])
-                    deleted_count += 1
-                except Exception as e:
-                    print(f"خطا در حذف پیام {msg.id}: {e}")
-                    continue
-
-        await update.message.reply_text(f"✅ عملیات انجام شد.\nتعداد پیام‌های حذف‌شده: {deleted_count}")
-    except Exception as e:
-        print("Delete Error:", e)
-        await update.message.reply_text("⚠️ خطایی رخ داد. آیدی رو چک کن یا بعداً دوباره تلاش کن.")
+        await update.message.reply_text(f"❌ خطا در لاگین: {e}")
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("گفتگو لغو شد ❌")
+    await update.message.reply_text("⛔️ عملیات لغو شد.")
     return ConversationHandler.END
 
-async def main():
-    from telegram.ext import Application
-    TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
-    DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"
-
-    app = Application.builder().token(TOKEN).build()
-
+def setup_handlers(app):
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[CommandHandler("login", login)],
         states={
-            USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
-            PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
-            TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_target)],
+            USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)],
+            PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
 
-    # ست کردن وبهوک فقط همین
-    await app.bot.set_webhook(f"{DOMAIN}/webhook/{TOKEN}")
+async def main():
+    app = Application.builder().token(TOKEN).build()
+    setup_handlers(app)
+
+    await app.bot.set_webhook(f"{WEBHOOK_DOMAIN}/webhook")
     await app.run_webhook(
         listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        webhook_path=f"/webhook/{TOKEN}"
+        port=8000,
+        webhook_path="/webhook"
     )
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main()) 
