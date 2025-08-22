@@ -9,7 +9,7 @@ cl = Client()
 SESSIONS = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! لطفاً اول یوزرنیم اینستاگرام خود را بفرست.")
+    await update.message.reply_text("سلام! لطفاً یوزرنیم اینستاگرام خود را ارسال کن.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -17,18 +17,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_id not in SESSIONS:
         SESSIONS[user_id] = {"step": "username", "username": text}
-        await update.message.reply_text("حالا پسورد اینستاگرامتو بفرست.")
+        await update.message.reply_text("حالا پسوردت رو بفرست.")
     elif SESSIONS[user_id]["step"] == "username":
         SESSIONS[user_id]["username"] = text
         SESSIONS[user_id]["step"] = "password"
-        await update.message.reply_text("حالا پسوردتو بفرست.")
+        await update.message.reply_text("حالا پسوردت رو بفرست.")
     elif SESSIONS[user_id]["step"] == "password":
         username = SESSIONS[user_id]["username"]
         password = text
         try:
             cl.login(username, password)
             SESSIONS[user_id]["logged_in"] = True
-            await update.message.reply_text("وارد شدیم! حالا آیدی کسی که می‌خوای چت رو پاک کنیم بفرست.")
+            await update.message.reply_text("وارد شدیم! آیدی کسی که باهاش چت داشتی رو بفرست.")
             SESSIONS[user_id]["step"] = "target"
         except Exception as e:
             await update.message.reply_text(f"ورود ناموفق ❌\n{e}")
@@ -43,11 +43,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("✅ همه پیام‌ها پاک شدن.")
             del SESSIONS[user_id]
         except Exception as e:
-            await update.message.reply_text(f"خطا در پاک کردن پیام‌ها:\n{e}")
+            await update.message.reply_text(f"خطا در حذف پیام‌ها:\n{e}")
             del SESSIONS[user_id]
 
 async def main():
-    app = ApplicationBuilder().token("8385635455:AAGSwcS-fol43Sd2ogy6-5rXgn5cRmOJnT8").build()
+    app = ApplicationBuilder().token("توکن ربات خودتو اینجا بذار").build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -56,4 +56,4 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    asyncio.run(main()) 
