@@ -72,9 +72,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("گفتگو لغو شد ❌")
     return ConversationHandler.END
 
+# ----------------------------
+# ✅ اجرای Webhook صحیح:
+# ----------------------------
 if __name__ == '__main__':
-    from telegram.ext import Defaults
-    from telegram.constants import ParseMode
+    import asyncio
 
     TOKEN = os.getenv("BOT_TOKEN") or "8385635455:AAFIxFy8Ax1XR9qbP0WJ8LmbEqEjKOYgEPw"
     DOMAIN = os.getenv("DOMAIN") or "https://instagram-bvt4.onrender.com"
@@ -93,17 +95,12 @@ if __name__ == '__main__':
 
     app.add_handler(conv_handler)
 
-    # راه‌اندازی دستی webhook بدون webhook_path
     async def main():
-        await app.initialize()
-        await app.start()
-        await app.bot.set_webhook(url=f"{DOMAIN}/webhook/{TOKEN}")
-        await app.updater.start_webhook(
+        await app.run_webhook(
             listen="0.0.0.0",
             port=int(os.environ.get("PORT", 10000)),
-            url_path=f"/webhook/{TOKEN}"
+            webhook_path=f"/webhook/{TOKEN}",
+            webhook_url=f"{DOMAIN}/webhook/{TOKEN}",
         )
-        await app.updater.wait_for_stop()
 
-    import asyncio
-    asyncio.run(main()) 
+    asyncio.run(main())
